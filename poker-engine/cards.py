@@ -62,16 +62,16 @@ class Deck:
     def __init__(self) -> None:
         # TODO: build self._cards as a list of all 52 Card combinations
         # hint: loop over every Suit and every Rank
-        self.cards = [Card(rank, suit) for suit in Suit for rank in Rank]
+        self._cards = [Card(rank, suit) for suit in Suit for rank in Rank]
  
     def __len__(self) -> int:
         # TODO: return how many cards remain in the deck
-        return len(self.cards)
+        return len(self._cards)
  
     def shuffle(self) -> None:
         # TODO: shuffle self._cards in place
         # hint: random.shuffle()
-        random.shuffle(self.cards)
+        random.shuffle(self._cards)
  
     def deal(self, n: int = 1) -> list[Card]:
         """Remove and return n cards from the top of the deck.
@@ -79,16 +79,16 @@ class Deck:
         Raises ValueError if there aren't enough cards remaining.
         """
         # TODO: raise ValueError if n > len(self._cards)
-        if n > len(self.cards):
+        if n > len(self._cards):
             raise ValueError("Not enough cards in the deck.")
         # TODO: remove the first n cards from self._cards and return them
         # hint: think about how to split a list in one line
-        dealt_cards = self.cards[:n]
-        self.cards = self.cards[n:]
+        dealt_cards = self._cards[:n]
+        self._cards = self._cards[n:]
         return dealt_cards
  
     def reset(self) -> None:
         """Restore the deck to a full 52 cards (unshuffled)."""
         # TODO: rebuild the deck from scratch
         # hint: one line — you've already written the logic somewhere above
-        self.cards = [Card(rank, suit) for suit in Suit for rank in Rank]
+        self.__init__()
