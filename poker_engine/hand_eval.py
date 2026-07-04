@@ -4,7 +4,7 @@ from collections import Counter
 from enum import IntEnum
 from itertools import combinations
 
-from poker_engine.cards import Card, Rank # type: ignore
+from poker_engine.cards import Card, Rank
 
 class HandRank(IntEnum):
     HIGH_CARD = 1
