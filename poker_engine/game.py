@@ -26,6 +26,11 @@ class GameState:
     betting_state: BettingRoundState | None
     winners: dict[str, int] | None = None  # player_id -> chips won
     pots_at_showdown: tuple[Pot, ...] | None = None
+    # Board as it stood the instant the last player went all-in, before the
+    # remaining streets were auto-dealt. Lets callers (e.g. the CLI) compute
+    # true equity-with-cards-to-come instead of a deterministic result against
+    # the already-completed board.
+    all_in_snapshot_board: tuple[Card, ...] | None = None
 
     @classmethod
     def start_new_hand(
@@ -249,6 +254,7 @@ class GameState:
         """Deal all remaining board cards directly to showdown (no more betting rounds)."""
         deck_list = list(remaining_deck)
         new_board = list(self.board_cards)
+        pre_runout_board = tuple(self.board_cards)
 
         # Deal Flop if not dealt
         if len(new_board) == 0:
@@ -266,9 +272,14 @@ class GameState:
             deck_list.pop(0) # burn
             new_board.append(deck_list.pop(0))
 
-        return self._run_showdown(current_players, tuple(new_board))
+        return self._run_showdown(current_players, tuple(new_board), all_in_snapshot_board=pre_runout_board)
 
-    def _run_showdown(self, current_players: tuple[PlayerState, ...], final_board: tuple[Card, ...]) -> GameState:
+    def _run_showdown(
+        self,
+        current_players: tuple[PlayerState, ...],
+        final_board: tuple[Card, ...],
+        all_in_snapshot_board: tuple[Card, ...] | None = None
+    ) -> GameState:
         """Run showdown logic: evaluate hands, calculate side pots, and award chips."""
         # 1. Apply refunds for any uncalled bets
         contributions = {p.player_id: p.chips_in_hand for p in current_players}
@@ -366,7 +377,8 @@ class GameState:
             player_hands=self.player_hands,
             betting_state=None,
             winners={pid: amt for pid, amt in winners_dict.items() if amt > 0},
-            pots_at_showdown=tuple(pots)
+            pots_at_showdown=tuple(pots),
+            all_in_snapshot_board=all_in_snapshot_board
         )
 
     def _resolve_hand_winner_by_folding(self, current_players: tuple[PlayerState, ...], winner_id: str) -> GameState:

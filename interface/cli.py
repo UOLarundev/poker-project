@@ -3,49 +3,62 @@ import sys
 from poker_engine.player import PlayerState
 from poker_engine.actions import Action, ActionType
 from poker_engine.game import GameState
+from poker_engine.equity import calculate_equity
 
 
 def choose_bot_action(state: GameState) -> Action:
-    """Determine a simple action for a bot player."""
     bot_id = state.betting_state.current_actor.player_id
     allowed = state.betting_state.get_allowed_actions(bot_id)
     allowed_types = {a.action_type for a in allowed}
-    
+
     actor = state.betting_state.current_actor
     current_bet = state.betting_state.current_bet
     last_raise = state.betting_state.last_raise_increment
     bb = state.betting_state.big_blind
-    
-    # Calculate raise boundaries
+
     min_raise = bb if current_bet == 0 else current_bet + last_raise
     max_raise = actor.chips_in_street + actor.stack
-    
+
     choice = random.random()
-    
+
     if ActionType.CHECK in allowed_types:
-        # Check 80%, Raise 20%
-        if choice < 0.8:
+        if choice < 0.8 or ActionType.RAISE not in allowed_types:
             return Action(ActionType.CHECK)
-        elif ActionType.RAISE in allowed_types:
-            raise_amt = min(min_raise, max_raise)
-            return Action(ActionType.RAISE, amount=raise_amt)
         else:
-            return Action(ActionType.CHECK)
-            
-    elif ActionType.CALL in allowed_types:
-        # Call 70%, Raise 15%, Fold 15%
+            return Action(ActionType.RAISE, amount=min(min_raise, max_raise))
+
+    if ActionType.CALL in allowed_types:
         if choice < 0.7:
             return Action(ActionType.CALL)
         elif choice < 0.85 and ActionType.RAISE in allowed_types:
-            raise_amt = min(min_raise, max_raise)
-            return Action(ActionType.RAISE, amount=raise_amt)
-        else:
+            return Action(ActionType.RAISE, amount=min(min_raise, max_raise))
+        elif ActionType.FOLD in allowed_types:
             return Action(ActionType.FOLD)
-            
-    elif ActionType.ALL_IN in allowed_types:
+        else:
+            return Action(ActionType.CALL)
+
+    if ActionType.ALL_IN in allowed_types:
         return Action(ActionType.ALL_IN)
-        
-    return Action(ActionType.FOLD)
+
+    if ActionType.FOLD in allowed_types:
+        return Action(ActionType.FOLD)
+
+    # Should never reach here — return first allowed action as safety net
+    return allowed[0]
+
+def display_equity_if_allin(state: GameState) -> None:
+    active_players = [p for p in state.players if not p.is_folded]
+    if all(p.is_all_in for p in active_players) and len(active_players) > 1 and state.board_cards:
+        # Use the board as it stood when the all-in was locked in, not the
+        # fully-dealt board — otherwise equity is always 100%/0% for whoever
+        # the already-known runout favors.
+        board = state.all_in_snapshot_board if state.all_in_snapshot_board is not None else state.board_cards
+        player_hands = {p.player_id: list(state.player_hands[p.player_id]) for p in active_players}
+        equities = calculate_equity(player_hands, list(board))
+        print("\n--- ALL-IN EQUITY ---")
+        for pid, eq in equities.items():
+            print(f"  {pid}: {eq:.1%}")
+        print("---------------------")
 
 
 def format_card(card) -> str:
@@ -72,7 +85,7 @@ def format_cards(cards) -> str:
 
 def play_game():
     print("=" * 50)
-    print("          WELCOME TO ANTIGRAVITY POKER CLI          ")
+    print("          POKER CLI          ")
     print("=" * 50)
 
     # Initialize players: Human (You) and two bots (Bot A, Bot B)
@@ -119,6 +132,7 @@ def play_game():
                 print(f"\n>>> {state.street} (Pot: ${pot_size}) <<<")
                 if state.board_cards:
                     print(f"Board: {format_cards(state.board_cards)}")
+                display_equity_if_allin(state)                
                 prev_street = state.street
 
             actor = state.betting_state.current_actor
@@ -188,7 +202,8 @@ def play_game():
                 elif action.action_type == ActionType.CALL:
                     print("You called")
                 else:
-                    print(f"You chose: {action.action_type.value}")
+                    print(f"You chose: {action.action_type.value}")                    
+                display_equity_if_allin(state)
             else:
                 # Bot action
                 action = choose_bot_action(state)
@@ -207,6 +222,7 @@ def play_game():
                     print(f"{actor_id} raises to ${action.amount}")
                 elif action.action_type == ActionType.ALL_IN:
                     print(f"{actor_id} goes ALL-IN!")
+                display_equity_if_allin(state)
                     
         # Hand concluded
         print(f"\n--- HAND CONCLUDED ({state.street}) ---")
@@ -226,7 +242,12 @@ def play_game():
             print(f"  * {pid} wins ${amt}!")
             
         # Update stacks for the next hand
-        players = list(state.players)
+        # Update stacks for the next hand — reset all hand state, keep only id and chips
+        players = [
+            PlayerState(player_id=p.player_id, stack=p.stack)
+            for p in state.players
+            if p.stack > 0
+        ]
         
         # Ask to continue
         cont = input("\nPlay next hand? (y/n): ").strip().lower()
