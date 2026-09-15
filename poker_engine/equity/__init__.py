@@ -1,8 +1,8 @@
 from poker_engine.cards import Card
 from poker_engine.equity.true_equity import exact_equity
-from poker_engine.equity.monte_carlo import monte_carlo_equity
+from poker_engine.equity.monte_carlo import monte_carlo_equity, equity_vs_random
 
-__all__ = ["exact_equity", "monte_carlo_equity", "calculate_equity"]
+__all__ = ["exact_equity", "monte_carlo_equity", "equity_vs_random", "calculate_equity"]
 
 # Exact enumeration is only fast enough while there are 2 or fewer cards left
 # to come (turn/river/flop). Preflop (5 cards to come) enumerates over a

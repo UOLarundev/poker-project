@@ -3,7 +3,22 @@ import sys
 from poker_engine.player import PlayerState
 from poker_engine.actions import Action, ActionType
 from poker_engine.game import GameState
-from poker_engine.equity import calculate_equity
+from poker_engine.equity import calculate_equity, equity_vs_random
+
+# Equity-vs-random trial counts: bots decide far more often than the human
+# looks at their own display (every actor turn, every street, every hand), so
+# they get a cheaper/noisier estimate; the human's number gets a more precise one.
+BOT_EQUITY_TRIALS = 1000
+HUMAN_EQUITY_TRIALS = 5000
+
+
+def _clamp(value: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, value))
+
+
+def count_live_opponents(state: GameState, player_id: str) -> int:
+    """Count non-folded players other than player_id still contesting the pot."""
+    return sum(1 for p in state.players if p.player_id != player_id and not p.is_folded)
 
 
 def choose_bot_action(state: GameState) -> Action:
@@ -19,18 +34,31 @@ def choose_bot_action(state: GameState) -> Action:
     min_raise = bb if current_bet == 0 else current_bet + last_raise
     max_raise = actor.chips_in_street + actor.stack
 
+    bot_hole = list(state.player_hands[bot_id])
+    num_opponents = count_live_opponents(state, bot_id)
+    eq = equity_vs_random(
+        bot_hole, list(state.board_cards), num_opponents=num_opponents, trials=BOT_EQUITY_TRIALS
+    )
+    # -1 (way behind) .. 0 (coinflip) .. +1 (way ahead) — nudges the existing
+    # random cutoffs instead of replacing them, so bots stay bluffable/foldable
+    # at any equity rather than becoming deterministic threshold-followers.
+    bias = (eq - 0.5) * 2
+
     choice = random.random()
 
     if ActionType.CHECK in allowed_types:
-        if choice < 0.8 or ActionType.RAISE not in allowed_types:
+        raise_cutoff = _clamp(0.8 - 0.3 * bias, 0.5, 0.95)
+        if choice < raise_cutoff or ActionType.RAISE not in allowed_types:
             return Action(ActionType.CHECK)
         else:
             return Action(ActionType.RAISE, amount=min(min_raise, max_raise))
 
     if ActionType.CALL in allowed_types:
-        if choice < 0.7:
+        call_cutoff = _clamp(0.7 - 0.25 * bias, 0.3, 0.9)
+        raise_cutoff = _clamp(call_cutoff + (0.15 + 0.15 * bias), call_cutoff, 0.97)
+        if choice < call_cutoff:
             return Action(ActionType.CALL)
-        elif choice < 0.85 and ActionType.RAISE in allowed_types:
+        elif choice < raise_cutoff and ActionType.RAISE in allowed_types:
             return Action(ActionType.RAISE, amount=min(min_raise, max_raise))
         elif ActionType.FOLD in allowed_types:
             return Action(ActionType.FOLD)
@@ -142,7 +170,12 @@ def play_game():
                 # Print current game state context
                 your_hole = state.player_hands["You"]
                 pot_size = sum(p.chips_in_hand for p in state.players)
-                print(f"\nYour hand: {format_cards(your_hole)}")
+                num_opponents = count_live_opponents(state, "You")
+                your_equity = equity_vs_random(
+                    list(your_hole), list(state.board_cards),
+                    num_opponents=num_opponents, trials=HUMAN_EQUITY_TRIALS
+                )
+                print(f"\nYour hand: {format_cards(your_hole)}  |  Equity vs random: {your_equity:.0%}")
                 print(f"Pot: ${pot_size} | Your stack: ${actor.stack} | Current bet to call: ${state.betting_state.current_bet} (you have bet ${actor.chips_in_street})")
                 
                 # Get allowed actions
