@@ -15,5 +15,22 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    build: .
+    environment:
+      # "db", not "localhost": inside Docker's private network the Postgres
+      # container is reachable by its service name, resolved via Docker's
+      # own DNS. From your Windows host it's localhost:5432 (the port
+      # mapping above); from inside this network it's db:5432 — different
+      # hostnames for the same database, depending on which side you're on.
+      DATABASE_URL: postgresql+psycopg://poker:poker@db:5432/poker
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        # Not just "started" — waits for the healthcheck above to pass, so
+        # the API never races Postgres accepting TCP before it can serve.
+        condition: service_healthy
+
 volumes:
   pgdata:

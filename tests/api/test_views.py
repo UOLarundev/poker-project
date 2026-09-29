@@ -2,13 +2,13 @@ import json
 import random
 from typing import Any
 
-from poker_engine.actions import Action, ActionType
-from poker_engine.game import GameState
-from poker_engine.player import PlayerState
+from test_serializers import random_legal_action
 
 from api.serializers import card_to_str
 from api.views import to_player_view
-from test_serializers import random_legal_action
+from poker_engine.actions import Action, ActionType
+from poker_engine.game import GameState
+from poker_engine.player import PlayerState
 
 
 def leaf_strings(obj: Any) -> set[str]:

@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main, layer-3]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # A throwaway Postgres for this job only — nothing to do with your local
+    # docker-compose one. GitHub Actions publishes a service container's
+    # ports to the runner's own localhost, so the DATABASE_URL default in
+    # api/config.py (matched to these same credentials) needs no override
+    # here.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: poker
+          POSTGRES_PASSWORD: poker
+          POSTGRES_DB: poker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U poker -d poker"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Matches the Dockerfile's base image, not the dev laptop's Python
+          # — CI and the shipped container are what need to agree.
+          python-version: "3.12"
+
+      - name: Install project + dev tools
+        run: |
+          pip install -e .
+          pip install ruff
+
+      - name: Lint (Layer 3 code only — poker_engine/ and interface/ are frozen)
+        run: ruff check api tests/api
+
+      # A fresh service container starts with no tables at all. Running the
+      # migration here isn't a formality — it's the proof that the schema
+      # in migrations/versions/ is actually sufficient to build the database
+      # from nothing, not something that only works because a laptop's
+      # Postgres already had it applied by hand.
+      - name: Run database migrations
+        run: alembic upgrade head
+
+      - name: Run tests
+        run: pytest -q
+
+  docker-build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build-only for now: proves the Dockerfile is valid and pip install .
+      # resolves cleanly. No push to a registry — that's wired up alongside
+      # the actual deploy target (Weekend 3), once one exists to push to.
+      - name: Build image
+        run: docker build -t poker-api:ci .

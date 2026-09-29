@@ -16,7 +16,15 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,7 +38,7 @@ class Player(Base):
     username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    games: Mapped[list["Game"]] = relationship(back_populates="player")
+    games: Mapped[list[Game]] = relationship(back_populates="player")
 
 
 class Game(Base):
@@ -48,8 +56,8 @@ class Game(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    player: Mapped["Player"] = relationship(back_populates="games")
-    hands: Mapped[list["Hand"]] = relationship(back_populates="game")
+    player: Mapped[Player] = relationship(back_populates="games")
+    hands: Mapped[list[Hand]] = relationship(back_populates="game")
 
 
 class Hand(Base):
@@ -70,8 +78,8 @@ class Hand(Base):
     pot_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
     hero_net: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    game: Mapped["Game"] = relationship(back_populates="hands")
-    actions: Mapped[list["Action"]] = relationship(back_populates="hand")
+    game: Mapped[Game] = relationship(back_populates="hands")
+    actions: Mapped[list[Action]] = relationship(back_populates="hand")
 
 
 class Action(Base):
@@ -95,4 +103,4 @@ class Action(Base):
     response_body: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    hand: Mapped["Hand"] = relationship(back_populates="actions")
+    hand: Mapped[Hand] = relationship(back_populates="actions")

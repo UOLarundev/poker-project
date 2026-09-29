@@ -1,0 +1,22 @@
+# Version control and editor/tooling state — irrelevant to the built image,
+# and would otherwise invalidate Docker's build cache on every unrelated change.
+.git
+.claude
+.pytest_cache
+__pycache__
+**/__pycache__
+*.pyc
+
+# Local-only artifacts: an egg-info from `pip install -e .`, and this
+# project's own venv if one exists on disk.
+poker_engine.egg-info
+.venv
+venv
+
+# Tests aren't part of the runtime image — smaller image, smaller attack surface.
+tests
+
+# Not needed inside the container itself.
+docker-compose.yml
+Dockerfile
+.dockerignore

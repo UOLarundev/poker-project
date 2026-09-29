@@ -18,3 +18,11 @@ include = ["poker_engine*", "api*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint.per-file-ignores]
+# Depends(...) as a default argument is FastAPI's documented dependency-
+# injection mechanism, not the mutable-default footgun B008 exists to catch.
+"api/routes/*.py" = ["B008"]
