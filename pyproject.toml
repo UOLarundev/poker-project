@@ -9,7 +9,17 @@ dependencies = [
     "pydantic-settings>=2.0",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
+]
+
+[project.optional-dependencies]
+# Dev/test-only tooling — deliberately not in `dependencies` above, so it
+# never ships in the Docker image (Dockerfile runs `pip install .`, no
+# extra). httpx lives here too: it's only used by FastAPI's TestClient in
+# tests, never by the app itself at runtime.
+dev = [
+    "pytest>=8.0",
     "httpx>=0.27",
+    "ruff>=0.4",
 ]
 
 [tool.setuptools.packages.find]
