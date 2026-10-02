@@ -10,6 +10,8 @@ schema shown at /docs.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -18,11 +20,33 @@ class CreateGameRequest(BaseModel):
     username: str = Field(min_length=1, max_length=32)
 
 
+class SubmitActionRequest(BaseModel):
+    # Client-generated: the whole idempotency mechanism depends on the
+    # SAME retried request carrying the SAME id, not one assigned by the
+    # server after the fact.
+    action_id: uuid.UUID
+    action_type: Literal["fold", "check", "call", "raise", "all_in"]
+    amount: int | None = None
+
+
+class NextHandRequest(BaseModel):
+    # Same idempotency mechanism as SubmitActionRequest, and for the same
+    # reason: dealing a hand involves a real shuffle, so a naive retry
+    # would deal a DIFFERENT hand rather than just reapplying the same one.
+    action_id: uuid.UUID
+
+
 class LegalAction(BaseModel):
     type: str
     amount: int | None = None
     min: int | None = None
     max: int | None = None
+
+
+class ActionLogEntry(BaseModel):
+    actor_id: str
+    action_type: str
+    amount: int | None = None
 
 
 class PlayerSeat(BaseModel):
@@ -55,3 +79,39 @@ class GameView(BaseModel):
     legal_actions: list[LegalAction]
     players: list[PlayerSeat]
     winners: dict[str, int] | None
+    # What happened since the client's last view of this game: the human's
+    # own action (if any) followed by whatever bots did in response.
+    # Ephemeral per-request narration, not derived from the persisted
+    # GameState — always present, but genuinely empty for a fresh game or
+    # a plain GET refresh (nothing happened as a result of those).
+    action_log: list[ActionLogEntry]
+
+
+class HandHistoryEntry(BaseModel):
+    """One row from the hands table. ended_at/winners/pot_total/hero_net
+    are null for a hand still in progress — deliberately not filtered out
+    in SQL (see history_service.get_hand_history)."""
+
+    hand_id: uuid.UUID
+    game_id: uuid.UUID
+    hand_number: int
+    started_at: datetime
+    ended_at: datetime | None
+    board: list[str] | None
+    hero_hole: list[str] | None
+    winners: dict[str, int] | None
+    pot_total: int | None
+    hero_net: int | None
+
+
+class GameOverView(BaseModel):
+    """Returned instead of GameView when fewer than 2 players have chips
+    left after a hand — there is no next hand to deal. Structurally
+    distinct from GameView (no hand_id, no legal_actions, ...) so FastAPI's
+    Union response_model can tell the two apart without an explicit
+    discriminator field."""
+
+    game_id: uuid.UUID
+    game_over: Literal[True] = True
+    winner: str | None
+    final_stacks: dict[str, int]

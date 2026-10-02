@@ -1,0 +1,19 @@
+# Render Blueprint — committed, explicit infra config, same spirit as the
+# fly.toml this replaced: what gets deployed and how is readable in the
+# repo, not buried in a dashboard click-path.
+#
+# Postgres is deliberately NOT defined here as a Render-managed database:
+# it's hosted on Neon instead (permanent free tier, no forced expiry —
+# Render's own free Postgres is deleted 44 days after creation). DATABASE_URL
+# below is `sync: false`, meaning Render prompts for it once during the
+# Blueprint's initial setup rather than generating/managing it itself.
+services:
+  - name: poker-project
+    type: web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false

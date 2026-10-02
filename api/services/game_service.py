@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from api import models
 from api.serializers import card_to_str, game_state_from_dict, game_state_to_dict
+from api.services.bot_service import resolve_bots
 from poker_engine.game import GameState
 from poker_engine.player import PlayerState
 
@@ -42,6 +43,10 @@ def create_game(db: Session, username: str) -> tuple[models.Game, models.Hand, G
         PlayerState(player_id=BOT_IDS[1], stack=STARTING_STACK),
     ]
     state = GameState.start_new_hand(seats, dealer_button_index=0, sb_amount=SB_AMOUNT, bb_amount=BB_AMOUNT)
+    # No-op today (dealer_button_index=0 always makes the human first to
+    # act), but not something later hands should have to rely on by luck.
+    # Log discarded: nothing has been shown to the player yet to narrate against.
+    state, _ = resolve_bots(state, username)
 
     game = models.Game(
         player_id=player.id,
@@ -56,6 +61,7 @@ def create_game(db: Session, username: str) -> tuple[models.Game, models.Hand, G
         game_id=game.id,
         player_id=player.id,
         hand_number=1,
+        hero_stack_start=STARTING_STACK,
         hero_hole=[card_to_str(c) for c in state.player_hands[username]],
     )
     db.add(hand)
@@ -68,13 +74,13 @@ def get_game(db: Session, game_id: uuid.UUID) -> tuple[models.Game, models.Hand 
     if game is None:
         return None
 
-    # The hand still in progress for this game. No hand ever gets ended_at
-    # set yet (that lands with next weekend's action endpoint), so today
-    # this always resolves — the None case is a placeholder for that.
+    # The most recent hand, finished or not — NOT filtered to "still in
+    # progress". Between a hand finishing and the next one being dealt,
+    # filtering on ended_at IS NULL would find nothing at all here, and
+    # crash the route on hand.id. This way the finished hand's result just
+    # keeps showing until a new one exists.
     hand = db.scalar(
-        select(models.Hand)
-        .where(models.Hand.game_id == game.id, models.Hand.ended_at.is_(None))
-        .order_by(models.Hand.started_at.desc())
+        select(models.Hand).where(models.Hand.game_id == game.id).order_by(models.Hand.started_at.desc())
     )
     state = game_state_from_dict(game.current_state)
     return game, hand, state

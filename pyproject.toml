@@ -36,3 +36,4 @@ line-length = 110
 # Depends(...) as a default argument is FastAPI's documented dependency-
 # injection mechanism, not the mutable-default footgun B008 exists to catch.
 "api/routes/*.py" = ["B008"]
+"api/main.py" = ["B008"]

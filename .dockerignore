@@ -13,6 +13,12 @@ poker_engine.egg-info
 .venv
 venv
 
+# The frontend SOURCE stays in the build context (stage 1 needs it), but
+# not its installed deps or any locally-built output — the build stage
+# runs its own `npm ci` and `npm run build` from scratch every time.
+frontend/node_modules
+frontend/dist
+
 # Tests aren't part of the runtime image — smaller image, smaller attack surface.
 tests
 

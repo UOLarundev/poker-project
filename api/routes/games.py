@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/games", tags=["games"])
 def create_game(body: CreateGameRequest, db: Session = Depends(get_db)) -> dict:
     game, hand, state = game_service.create_game(db, body.username)
     view = to_player_view(state, body.username)
-    return {**view, "game_id": game.id, "hand_id": hand.id}
+    return {**view, "game_id": game.id, "hand_id": hand.id, "action_log": []}
 
 
 @router.get("/{game_id}", response_model=GameView)
@@ -29,4 +29,4 @@ def read_game(game_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     game, hand, state = result
     viewer_id = game.player.username
     view = to_player_view(state, viewer_id)
-    return {**view, "game_id": game.id, "hand_id": hand.id}
+    return {**view, "game_id": game.id, "hand_id": hand.id, "action_log": []}

@@ -70,6 +70,11 @@ class Hand(Base):
     # exactly the column the index (added Weekend 4) will cover.
     player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id"), nullable=False)
     hand_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Captured the instant this hand is dealt (hand #1: the fixed starting
+    # stack; hand N+1: whatever stack carried over). Needed to compute
+    # hero_net correctly once a game has more than one hand — a fixed
+    # constant only worked before "next hand" existed.
+    hero_stack_start: Mapped[int] = mapped_column(Integer, nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     board: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
