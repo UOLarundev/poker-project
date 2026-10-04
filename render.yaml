@@ -13,6 +13,11 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
+    # Matches the Neon database's region (us-east-2 / AWS Ohio). Render
+    # defaults to oregon when unset — every DB round trip was crossing the
+    # country. Region is fixed at service creation, so this only takes
+    # effect on a freshly created service, not an existing one re-synced.
+    region: ohio
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
