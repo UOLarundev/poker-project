@@ -18,7 +18,9 @@ from api.main import app
 def clean_db():
     yield
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE actions, hands, games, players RESTART IDENTITY CASCADE"))
+        conn.execute(
+            text("TRUNCATE TABLE actions, hands, games, players, request_metrics RESTART IDENTITY CASCADE")
+        )
 
 
 @pytest.fixture

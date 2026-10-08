@@ -104,6 +104,26 @@ class HandHistoryEntry(BaseModel):
     hero_net: int | None
 
 
+class PercentileStats(BaseModel):
+    """p50/p95/p99 are exact (SQL percentile_cont over the raw recorded
+    durations), not bucket-interpolated estimates — see docs/latency.md."""
+
+    count: int
+    p50_ms: float | None
+    p95_ms: float | None
+    p99_ms: float | None
+
+
+class RouteStats(PercentileStats):
+    route: str
+    method: str
+
+
+class MetricsSummary(BaseModel):
+    overall: PercentileStats
+    by_route: list[RouteStats]
+
+
 class GameOverView(BaseModel):
     """Returned instead of GameView when fewer than 2 players have chips
     left after a hand — there is no next hand to deal. Structurally

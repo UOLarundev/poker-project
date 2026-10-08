@@ -6,9 +6,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from api.db import get_db
-from api.routes import actions, games, history
+from api.middleware.timing import timing_middleware
+from api.routes import actions, games, history, metrics
 
 app = FastAPI(title="Poker API")
+app.middleware("http")(timing_middleware)
 
 # /api/* and FastAPI's own built-in routes (/docs, /openapi.json — added by
 # FastAPI() above, before any of this runs) always take priority: Starlette
@@ -18,11 +20,13 @@ app = FastAPI(title="Poker API")
 app.include_router(games.router)
 app.include_router(actions.router)
 app.include_router(history.router)
+app.include_router(metrics.router)
 
 
 @app.get("/api/health")
 def health(db: Session = Depends(get_db)) -> dict:
-    """Used as Render's health-check target (see render.yaml). Deliberately
+    """Used as the deploy platform's health-check target (see render.yaml
+    and fly.toml). Deliberately
     touches the database with a trivial query rather than just returning
     200 unconditionally — "the process is running" and "the configured
     DATABASE_URL actually works" are different claims, and the second one
