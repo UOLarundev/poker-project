@@ -23,7 +23,10 @@ def leaf_strings(obj: Any) -> set[str]:
 
 
 def assert_no_hidden_info(state: GameState, viewer_id: str) -> None:
-    view = json.loads(json.dumps(to_player_view(state, viewer_id)))  # must be JSON-safe
+    # include_equity=False: this test checks hidden-info leaks across many
+    # hands/seats/streets in a loop — it has nothing to do with equity, and
+    # the default would mean a real 5000-trial simulation on every call.
+    view = json.loads(json.dumps(to_player_view(state, viewer_id, include_equity=False)))  # must be JSON-safe
     seen = leaf_strings(view)
 
     for card in state.deck_cards:
@@ -51,7 +54,7 @@ def test_no_seat_ever_sees_hidden_cards_mid_hand():
 
         # Even at hand end the deck is never sent.
         for pid in ("A", "B", "C"):
-            view = to_player_view(state, pid)
+            view = to_player_view(state, pid, include_equity=False)
             assert "deck_cards" not in view
 
 
@@ -61,7 +64,7 @@ def test_viewer_always_sees_own_cards_and_only_own_legal_actions():
     actor = state.betting_state.current_actor.player_id
 
     for pid in ("A", "B", "C"):
-        view = to_player_view(state, pid)
+        view = to_player_view(state, pid, include_equity=False)
         me = next(p for p in view["players"] if p["player_id"] == pid)
         assert me["hole_cards"] == [card_to_str(c) for c in state.player_hands[pid]]
         assert view["to_act"] == actor
@@ -80,7 +83,7 @@ def test_showdown_reveals_unfolded_hands_but_not_folded_ones():
     state = state.apply_action(Action(ActionType.CALL))    # C
     assert state.street == "HAND_OVER" and state.pots_at_showdown is not None
 
-    view = to_player_view(state, "A")
+    view = to_player_view(state, "A", include_equity=False)
     by_id = {p["player_id"]: p for p in view["players"]}
     assert by_id["B"]["hole_cards"] is not None
     assert by_id["C"]["hole_cards"] is not None
@@ -88,7 +91,9 @@ def test_showdown_reveals_unfolded_hands_but_not_folded_ones():
     assert view["winners"] == state.winners
 
     # Folded player's cards stay hidden from the others.
-    assert {p["player_id"]: p for p in to_player_view(state, "B")["players"]}["A"]["hole_cards"] is None
+    assert {
+        p["player_id"]: p for p in to_player_view(state, "B", include_equity=False)["players"]
+    }["A"]["hole_cards"] is None
 
 
 def test_fold_win_reveals_nothing():
@@ -98,9 +103,23 @@ def test_fold_win_reveals_nothing():
     state = state.apply_action(Action(ActionType.FOLD))  # B -> C wins uncontested
     assert state.street == "HAND_OVER" and state.pots_at_showdown is None
 
-    view = to_player_view(state, "A")
+    view = to_player_view(state, "A", include_equity=False)
     by_id = {p["player_id"]: p for p in view["players"]}
     assert by_id["C"]["hole_cards"] is None
     assert by_id["B"]["hole_cards"] is None
     assert view["is_hand_over"] is True
     assert view["winners"] == state.winners
+
+
+def test_your_equity_is_populated_on_your_turn_and_null_otherwise():
+    random.seed(7)
+    state = GameState.start_new_hand([PlayerState("A", 500), PlayerState("B", 500), PlayerState("C", 500)], 0, 5, 10)
+    actor = state.betting_state.current_actor.player_id
+    other = next(pid for pid in ("A", "B", "C") if pid != actor)
+
+    acting_view = to_player_view(state, actor)
+    assert acting_view["your_equity"] is not None
+    assert 0.0 <= acting_view["your_equity"] <= 1.0
+
+    waiting_view = to_player_view(state, other)
+    assert waiting_view["your_equity"] is None

@@ -11,7 +11,9 @@ from __future__ import annotations
 from typing import Any
 
 from api.serializers import card_to_str
+from interface.cli import HUMAN_EQUITY_TRIALS, count_live_opponents
 from poker_engine.actions import ActionType
+from poker_engine.equity import equity_vs_random
 from poker_engine.game import GameState
 
 TERMINAL_STREETS = ("SHOWDOWN", "HAND_OVER")
@@ -47,9 +49,28 @@ def _legal_actions(state: GameState, viewer_id: str) -> list[dict[str, Any]]:
     return actions
 
 
-def to_player_view(state: GameState, viewer_id: str) -> dict[str, Any]:
+def _your_equity(state: GameState, viewer_id: str, is_your_turn: bool) -> float | None:
+    # Mirrors interface/cli.py's own "Equity vs random: NN%" line exactly —
+    # same trial count, shown at the same moment (whenever it's actually
+    # your turn to act), just surfaced over HTTP instead of printed.
+    # NOT cheap: a real 5000-trial Monte Carlo simulation, same cost the
+    # CLI already pays for this, now also paid here when relevant.
+    if not is_your_turn:
+        return None
+    hero_cards = list(state.player_hands[viewer_id])
+    num_opponents = count_live_opponents(state, viewer_id)
+    return equity_vs_random(hero_cards, list(state.board_cards), num_opponents=num_opponents, trials=HUMAN_EQUITY_TRIALS)
+
+
+def to_player_view(state: GameState, viewer_id: str, *, include_equity: bool = True) -> dict[str, Any]:
+    # include_equity defaults True so every real API route is unaffected —
+    # this flag exists purely so tests that don't care about equity (most
+    # of them) aren't forced to pay for a real 5000-trial simulation on
+    # every call in a loop. Production behavior never changes; this is a
+    # test-speed escape hatch, not a feature toggle.
     showdown = _is_showdown(state)
     to_act = state.betting_state.current_actor.player_id if state.betting_state is not None else None
+    is_your_turn = to_act == viewer_id
 
     players = []
     for p in state.players:
@@ -75,8 +96,9 @@ def to_player_view(state: GameState, viewer_id: str) -> dict[str, Any]:
         "pot_total": sum(p.chips_in_hand for p in state.players),
         "current_bet": state.betting_state.current_bet if state.betting_state is not None else 0,
         "to_act": to_act,
-        "is_your_turn": to_act == viewer_id,
+        "is_your_turn": is_your_turn,
         "legal_actions": _legal_actions(state, viewer_id),
         "players": players,
         "winners": dict(state.winners) if state.winners is not None else None,
+        "your_equity": _your_equity(state, viewer_id, is_your_turn) if include_equity else None,
     }

@@ -163,6 +163,12 @@ export default function App() {
         </ul>
       )}
 
+      {view.your_equity !== null && (
+        // Same "Equity vs random: NN%" line interface/cli.py prints right
+        // before prompting for an action — same trial count, same moment.
+        <p className="your-equity">Equity vs random: {(view.your_equity * 100).toFixed(0)}%</p>
+      )}
+
       {view.is_hand_over ? (
         <button onClick={() => run(() => nextHand(view.hand_id))} disabled={busy}>
           Next Hand

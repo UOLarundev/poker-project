@@ -43,6 +43,7 @@ export interface GameView {
   players: PlayerSeat[];
   winners: Record<string, number> | null;
   action_log: ActionLogEntry[];
+  your_equity: number | null;
 }
 
 export interface GameOverView {

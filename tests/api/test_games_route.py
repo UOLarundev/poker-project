@@ -23,9 +23,17 @@ def test_same_username_reuses_the_player_row_but_creates_a_new_game(client):
 
 def test_get_game_returns_what_was_just_created(client):
     created = client.post("/api/games", json={"username": "arun"}).json()
-
     fetched = client.get(f"/api/games/{created['game_id']}").json()
+
+    # your_equity is a fresh Monte Carlo estimate on every single call —
+    # even for the same unchanged game state, two independent samples
+    # won't be bit-for-bit equal. Check it separately for presence/range;
+    # everything else should still match exactly.
+    created_equity = created.pop("your_equity")
+    fetched_equity = fetched.pop("your_equity")
     assert fetched == created
+    assert created_equity is not None and 0.0 <= created_equity <= 1.0
+    assert fetched_equity is not None and 0.0 <= fetched_equity <= 1.0
 
 
 def test_get_unknown_game_is_404(client):

@@ -85,6 +85,11 @@ class GameView(BaseModel):
     # GameState — always present, but genuinely empty for a fresh game or
     # a plain GET refresh (nothing happened as a result of those).
     action_log: list[ActionLogEntry]
+    # Mirrors interface/cli.py's own live equity display exactly — same
+    # trial count, same "only when it's actually your turn" timing. Null
+    # whenever it's not your turn (not computed at all in that case, not
+    # just hidden — this is a real Monte Carlo simulation, not free).
+    your_equity: float | None
 
 
 class HandHistoryEntry(BaseModel):

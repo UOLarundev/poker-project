@@ -144,6 +144,11 @@ button:disabled {
   font-size: 14px;
 }
 
+.your-equity {
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .action-log {
   list-style: none;
   padding: 8px;
