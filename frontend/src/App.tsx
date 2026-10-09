@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { createGame, getHandHistory, nextHand, submitAction } from "./api";
+import { createGame, getHandHistory, getMetricsSummary, nextHand, submitAction } from "./api";
 import { Card, FaceDownCard } from "./Card";
 import { HandHistory } from "./HandHistory";
-import { isGameOver, type ActionLogEntry, type GameOrOver, type HandHistoryEntry } from "./types";
+import { HealthPanel } from "./HealthPanel";
+import { isGameOver, type ActionLogEntry, type GameOrOver, type HandHistoryEntry, type MetricsSummary } from "./types";
 
 // Phrasing mirrors interface/cli.py's own print statements for each action
 // type — same narration the CLI player sees, rendered as list items here
@@ -31,6 +32,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [raiseTo, setRaiseTo] = useState("");
   const [history, setHistory] = useState<HandHistoryEntry[] | null>(null);
+  const [health, setHealth] = useState<MetricsSummary | null>(null);
 
   async function run(fn: () => Promise<GameOrOver>) {
     setBusy(true);
@@ -58,12 +60,31 @@ export default function App() {
     }
   }
 
+  async function openHealth() {
+    setError(null);
+    try {
+      setHealth(await getMetricsSummary());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   if (history !== null) {
     return (
       <div className="screen">
         <h1>Hand History</h1>
         <HandHistory entries={history} />
         <button onClick={() => setHistory(null)}>Back</button>
+      </div>
+    );
+  }
+
+  if (health !== null) {
+    return (
+      <div className="screen">
+        <h1>System Health</h1>
+        <HealthPanel summary={health} />
+        <button onClick={() => setHealth(null)}>Back</button>
       </div>
     );
   }
@@ -82,6 +103,9 @@ export default function App() {
           New Game
         </button>
         {error && <p className="error">{error}</p>}
+        <button className="history-link" onClick={openHealth}>
+          System Health
+        </button>
       </div>
     );
   }
@@ -115,6 +139,9 @@ export default function App() {
         <span>Pot: ${view.pot_total}</span>
         <button className="history-link" onClick={openHistory}>
           Hand History
+        </button>
+        <button className="history-link" onClick={openHealth}>
+          System Health
         </button>
       </div>
 

@@ -227,3 +227,32 @@ button:disabled {
 .net-loss {
   color: #fca5a5;
 }
+
+.health-overall {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.health-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.health-table th,
+.health-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--panel);
+}
+
+.health-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.health-route {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+}

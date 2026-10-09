@@ -1,4 +1,4 @@
-import type { GameOrOver, GameView, HandHistoryEntry, LegalAction } from "./types";
+import type { GameOrOver, GameView, HandHistoryEntry, LegalAction, MetricsSummary } from "./types";
 
 // Relative paths only — the Vite dev server proxies /api to the backend
 // (see vite.config.ts), and in production the same FastAPI process serves
@@ -55,4 +55,8 @@ export function nextHand(handId: string): Promise<GameOrOver> {
   return postJson<GameOrOver>(`/api/hands/${handId}/next`, {
     action_id: crypto.randomUUID(),
   });
+}
+
+export function getMetricsSummary(): Promise<MetricsSummary> {
+  return getJson<MetricsSummary>("/api/metrics/summary");
 }

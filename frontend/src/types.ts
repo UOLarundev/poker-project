@@ -66,6 +66,23 @@ export interface HandHistoryEntry {
   hero_net: number | null;
 }
 
+export interface PercentileStats {
+  count: number;
+  p50_ms: number | null;
+  p95_ms: number | null;
+  p99_ms: number | null;
+}
+
+export interface RouteStats extends PercentileStats {
+  route: string;
+  method: string;
+}
+
+export interface MetricsSummary {
+  overall: PercentileStats;
+  by_route: RouteStats[];
+}
+
 export type GameOrOver = GameView | GameOverView;
 
 export function isGameOver(view: GameOrOver): view is GameOverView {
